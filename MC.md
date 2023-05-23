@@ -17,20 +17,20 @@
 #### 다음과 같은 상황일 때 reward를 +1로 설정
 1. 앞으로 가고있을 때 action = 전진
 2. 뒤로 가고있을 때 action = 후진
-<img src="first.JPG"  width="1000" height="570">
+<img src="first.JPG"  width="500" height="500">
 
 #### episode 22에서 처음 성공함을 보인다. 
 
-<img src="reward=1.JPG"  width="1000" height="570">
-<img src="reward=1_2.JPG"  width="1000" height="570">
+<img src="reward=1.JPG"  width="500" height="500">
+<img src="reward=1_2.JPG"  width="500" height="500">
 
 #### reward = 2로 설정
-<img src="reward=2.JPG"  width="1000" height="570">
-<img src="reward=1_2.JPG"  width="1000" height="570">
-<img src="reward=1_3.JPG"  width="1000" height="570">
+<img src="reward=2.JPG"  width="500" height="500">
+<img src="reward=1_2.JPG"  width="500" height="500">
+<img src="reward=1_3.JPG"  width="500" height="500">
 
 #### final result
-<img src="final_result.JPG"  width="1000" height="570">
+<img src="final_result.JPG"  width="500" height="500">
 
 
 
