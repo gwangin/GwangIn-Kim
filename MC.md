@@ -26,8 +26,8 @@
 
 #### reward = 2로 설정
 <img src="reward=2.JPG"  width="800" height="500">
-<img src="reward=1_2.JPG"  width="800" height="500">
-<img src="reward=1_3.JPG"  width="800" height="500">
+<img src="reward=2_1.JPG"  width="800" height="500">
+<img src="reward=2_2.JPG"  width="800" height="500">
 
 #### final result
 <img src="final_result.JPG"  width="800" height="500">
