@@ -1,5 +1,7 @@
 # OS
 
+
+------
 ## 4 The Abstraction: The Process
 <br>
 
@@ -82,7 +84,7 @@ I/O작업은 일반적으로 시간이 소요되는 작업이며, 외부 장치�
 #### Process Control Block (PCB)<br>
 운영체제는 각 프로세스에 대한 정보를 저장하기 위해 PCB를 사용한다.<br>
 
-
+-----------
 ## 5. Interlude: Process API<br>
 실용적인 측면을 다룸, OS API 및 사용방법에 초점을 맞추고 있음.
 
@@ -232,7 +234,7 @@ execvp()는 새로운 프로그램을 실행하고, 현재 프로세스의 메�
 > fork()를 호출한 프로세스를 새로운 공간으로 전부 복사하게 되고, 원래 프로세스는 원래 프로세스대로 작업을 실행하고 fork()를 이용해서 생성된 프로세스도 fork() 시스템 콜이 수행된 라인의 다음 라인부터 실행된다.<br>
 
 >exec() 는 새로운 프로세스를 위한 메모리를 할당하지 않고, exec()를 호출한 프로세스가 아닌 exec()에 의해 호출된 프로세스만 메모리에 남게 된다.<br>
-- >fork() : 새로운 프로세스를 위한 메모리 할당 X , 프로세스가 하나 더 생김!
+- >fork() : 새로운 프로세스를 위한 메모리 할당 O , 프로세스가 하나 더 생김!
 - >exec() : exec()를 호출한 프로세스가 아닌 exec()에 의해 호출된 프로세스만 메모리에 남게 된다. exec()를 호출한 프로세스의 PID가 새로운 프로세스에 그대로 사용!
 
 
@@ -248,4 +250,200 @@ execvp()는 새로운 프로그램을 실행하고, 현재 프로세스의 메�
 >8. 슈퍼유저는 모든 프로세스를 제어할 수 있으며(그리고 실제로 많은 다른 작업도 수행할 수 있습니다), 보안상의 이유로 드물고 신중하게 이 역할을 맡아야 합니다.
 
 
+#### exit() 
+exit() 함수는 프로그램을 종료할 때 사용.<br>
+종료 상태 (exit status)를 지정할 수 있는데, 이 상태는 프로그램이 성공적으로 종료되었는지(return 0), 아니면 오류로 종료되었는지를(return 다른 값 예를 들어 -1) 알려준다.<br>
+
+
+
+
+#### fork() 실습 :
+```c
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+int main() {
+    
+    pid_t pid;
+    
+    int x;
+    x = 0;
+    
+    pid = fork();
+    
+    if(pid > 0) {  // 부모 코드
+        x = 1;
+        printf("부모 PID : %ld,  x : %d , pid : %d\n",(long)getpid(), x, pid);
+    }
+    else if(pid == 0){  // 자식 코드
+        x = 2;
+        printf("자식 PID : %ld,  x : %d\n",(long)getpid(), x);
+    }
+    else {  // fork 실패
+        printf("fork Fail! \n");
+        return -1;
+    }
+    
+    return 0;
+
+}
+```
+#### 실행 결과:
+부모 PID : 5036,  x : 1 , pid : 5038<br>
+자식 PID : 5038,  x : 2<br>
+
+#### exit() 실습:
+-  나누기 기능을 하는 프로그램 만들기
+```c
+
+#include <stdio.h>
+#include <stdlib.h>
+
+float divide(int a , int b)
+{
+    if (b == 0)
+    {
+        return -1;
+    }
+
+
+    return a/b;
+}
+
+int main()
+{
+    int a , b;
+    float ans;
+    printf("a/b , a와b 를 입력하시오");
+
+    scanf("%d%d", &a, &b);
+
+    ans = divide(a,b);
+    if (ans == -1)
+    {
+        printf("Error!!\n");
+    }
+    else
+    {
+        printf("%f\n" , ans);
+    }
+
+    return 0;
+}
+```
+#### 실행 결과:
+a/b , a와b 를 입력하시오10 5
+2.000000
+<br>
+a/b , a와b 를 입력하시오5 0
+Error!!<br>
+
+--------
+## 6. Mechanism: Limited Direct Execution
+
+### 6.1 Basic Technique: Limited Direct Execution
+우선 제한 없는 Direct Execution : 
+CPU에서 프로그램을 직접 실행.<br>
+프로세스 목록에서 행당 프로그램의 Tree를 만들고, 메모리 할당하고 , 프로그램 코드를 디스크에서 메모리로 Load 하고, main()함수를 찾아서 실행시키고, 프로그램이 끝나면 메모리를 해제하고, 프로세스 목록에서 제거한다.<br> 
+
+OS<br>
+Create entry for process list Allocate memory for program Load program into memory Set up stack with argc/argv Clear registers
+Execute call main() Free memory of process
+Remove from process list
+Figure 6.1: Direct Execution Protocol (Without Limits)
+
+Program<br>
+Run main()
+Execute return from main
+
+
+OS<br>
+Free memory of process
+Remove from process list
+
+하지만 이러한 방법은 다음과 같은 문제가 발생한다.<br>
+1. 비효율적이다. 원하지 않는 동작을 수행할 수 있다.
+2. 프로세스를 실행하는 동안, OS가 그것을 중지하고 다른 프로세스를 전환하여 CPU를 가상화하는 Time Sharing을 어떻게 구현할까? 이다.<br>
+
+###  6.2 Problem #1: Restricted Operations
+- 프로세스가 디스크에 I/O요청을 보내거나 CPU나 메모리와 같은 시스템 지원에 접근하는 등의 제한된 작업을 수행하려는 경우<br>
+
+1. 모든 프로세스가 I/O와 관련된 작업을 원하는 대로 수행할 수 있도록 하는 것이다
+이렇게 한다면 시스템을 구축하는 것이 불가능해짐. 프로세스가 디스크를 읽거나 쓰는 , 모든 보호기능이 상실될 수 있다.
+
+따라서 User Mode 라는 프로세서 모드를 도입
+- User Mode : 프로세스가 제한된 작업만 수행할 수 있도록 하는 모드
+예를 들어 User mode에서 실행 중인 프로세스느 I/O 요청을 보낼 수 없다.
+
+이와 대조적으로 Kernel Mode 라는 모드를 도입
+- Kernel Mode : 프로세스가 모든 작업을 수행할 수 있도록 하는 모드
+실행되는 코드는 I/O요청을 포함한 권한이 있는 작업을 수행할 수 있다.
+
+
+- user process가 디스크에서 읽기와 같은 privileged operation을 수행하려고 하면, OS는  user program이 system call을 수행할 수 있다.
+
+system call을 수행하려면 trap 명령어를 실행해야함.
+
+> trap instruction(명령어) : trap 명령어는 프로세스가 현재 실행 중인 명령 흐름을 일시적으로 중단하고, 운영 체제 또는 커널 모드로 전환하여 privileged operation을 수행할 수 있게 해주는 명령어이다.
+
+커널로 점프하고  privilege level to kernel mode 권한 수준을 커널 모드로 올림.
+이렇게 되면 privileged operation을 수행할 수 있게 되고 작업이 끝나면 OS는 return-from-trap instruction을 호출한다.
+호출한 user program을 반환하면서 privilege level을 user mode로 다시 낮춘다.
+
+
+#### User Mode  와 Kernel Mode
+>유저모드 (User Mode)와 커널모드 (Kernel mode)
+>커널에서 중요한 자원을 관리하기 때문에, 사용자가 그 중요한 자원에 접근하지 못하도록 모드를 >2가지로 나눈 것이다.
+
+>- User Mode
+>유저(사용자)가 접근할 수 있는 영역을 제한적으로 두고, 프로그램의 자원에 함부로 침범하지 못하는 >모드이다.
+>우리는 여기서 코드를 작성하고, 프로세스를 실행하는 등의 행동을 할 수 있다.
+>간단하게 "유저 어플리케이션 코드가 유저모드에서 실행된다." 라고 말할 수 있다.
+
+>- Kernel Mode
+>모든 자원(드라이버, 메모리, CPU 등)에 접근, 명령을 할 수 있다.
+>유저모드와는 비교가 안되게 컴퓨터 내부에서 모든 짓(?)을 할 수 있다고 생각하면 된다.
+
+
+To specify the exact system call ,시스템 호출을 정확히 하기 위해
+각 시스템 콜에 번호가 할당됨.OS안의 Trap handler는 이 번호를 검사하고 유효한 경우 해당 코드를 실행한다.
+
+Hardware에 Trap-Table의 위치를 알려주는 명령을 실행할 수 있다.
+(Privileged instruction)
+
+
+### 6.3 Problem #2: Switching Between Processes
+
+####  process가 CPU에서 실행중이라면 OS는 실행중이 아니다.
+그렇다면 어떻게 CPU 를 Regain할 수 있을까?
+
+1. Cooperative Approach : Wait For system calls
+The OS trusts the processes of the system to behave reasonably.
+
+너무 오래 실행된 프로세스는 주기적으로 CPU를 양보하여 다른 작업을 수행할 수 있도록 한다.
+Process가 자발적으로 양도!
+system call이나 illegal instruction을 실행하면 OS가 CPU를 얻을 수 있다.(Trap을 통해)
+
+#### full of bugs or malicious process가 inifinite loop에 빠지면 어떻게 될까?
+기계재부팅을 해야한다.
+
+2. Non-Cooperative Approach : The OS takes control
+
+일정한 타임 간격으로 OS가 CPU를 얻을 수 있도록 한다.
+OS는 timer interrupt가 발생할때까지 어떤 코드를 실행할지 하드웨어에 알려줘야한다.
+OS가 강제로 CPU를 얻는다.
+
+OS Regain control - > 실행중인 프로세스를 계속 실행할지 or 다른 프로세스로 변환할지 정해야한다.
+
+Context Switching : OS가 실행중인 프로세스를 중단하고 다른 프로세스를 실행하는 것
+1. OS는 현재 실행중인 프로세스의 레지스터값을 저장한다.
+2. OS는 다음 실행할 프로세스의 레지스터값을 복원한다.
+3. OS는 다음 프로세스를 실행한다.
+
+#### 6.4 Worried about Concurrency?
+동시성 주의
+
+system call중에 timer interrupt가 발생하면 어떻게 될까?
+interrupt를 처리하는 중에 다른 interrupt가 발생하면 어떻게 될까?
 
