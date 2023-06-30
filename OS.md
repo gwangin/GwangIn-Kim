@@ -429,7 +429,7 @@ f
 ###  6.2 Problem #1: Restricted Operations
 - 프로그램이 CPU에서 실행중에 프로그램이 디스크에 I/O요청을 보내거나 CPU나 메모리와 같은 시스템 지원에 접근하는 등의 제한된 작업을 수행하려는 경우<br>
 
-- Restricted operation에 대해서는 프로세스가 원하는 것을 모두 허용하는 것.<br>
+- Restricted operation에 대해서 프로세스가 원하는 것을 모두 허용하는 것.<br>
 이렇게 한다면 프로세스가 디스크를 읽거나 쓰는 , 모든 보호기능이 상실될 수 있다.
 
 따라서 User Mode 라는 프로세서 모드를 도입
@@ -472,7 +472,7 @@ Hardware에 Trap-Table의 위치를 알려주는 명령을 실행할 수 있다.
 (Privileged instruction)
 
 
-> 1. (부팅 시) 커널은 Trap Table을 초기화하며 CPU느 ㄴ이후 사용하기 위해 위치를 기억하낟. 이러한 과정은 Privileged Instruction을 통해 이루어진다.
+> 1. (부팅 시) 커널은 Trap Table을 초기화하며 CPU는 이후 사용하기 위해 위치를 기억.이러한 과정은 Privileged Instruction을 통해 이루어진다.
 > 2. (프로세스 실행 시) 커널은 프로세스를 실행하기 전 몇가지 사항을 설정하고 , CPU를 사용자 모드로 전환하여 프로세스를 실행하기 시작한ㄷ 프로세스가 시스템 호출을 하면 운영체제는 Trap에 걸려 이를 처리하고 return-from-trap 명령을 통해 프로세스 제어 권한을 반환한다. 그 후 프로세스가 작업을 완료하면 main()에서 return()된다. 이를 통해 프로그램이 정상적으로 exit()되고, 운영체제는 프로세스를 종료한다. 
 
 
