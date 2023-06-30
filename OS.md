@@ -345,40 +345,39 @@ int main() {
 #### exit() 실습:
 -  나누기 기능을 하는 프로그램 만들기
 ```c
-
 #include <stdio.h>
 #include <stdlib.h>
 
-float divide(int a , int b)
+float divide(int a, int b)
 {
-    if (b == 0)
-    {
-        return -1;
+    if(b == 0) {  
+        return -1; // 0으로 나누는 것은 에러!
     }
-
-
+    
     return a/b;
 }
 
 int main()
 {
-    int a , b;
-    float ans;
-    printf("a/b , a와b 를 입력하시오");
-
-    scanf("%d%d", &a, &b);
-
-    ans = divide(a,b);
-    if (ans == -1)
-    {
-        printf("Error!!\n");
+    float ret = 0;
+    
+    ret = divide(10,5);
+    if(ret == -1) { 
+        printf("Error!\n");
+        exit(-1); // 0으로 나누기 시도
     }
-    else
-    {
-        printf("%f\n" , ans);
+    
+    printf("ret : = %f\n", ret);
+    
+    ret = divide(10,0);
+    if(ret == -1) {  
+        printf("Error!\n");
+        exit(-1); // 0으로 나누기 시도
     }
+    
+    printf("ret : = %f\n", ret);
 
-    return 0;
+    exit(0);
 }
 ```
 #### 실행 결과:
