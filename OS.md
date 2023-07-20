@@ -935,6 +935,8 @@ OS는 space-management problem에 대해 두 가지 방법을 제공한다.<br>
 첫 번째는 세그먼트화를 통해 공간을 가변 크기 조각으로 분할하는 것이다.<br>
 세그먼트화는 공간을 다양한 크기의 청크로 분할하면 공간 자체가 단편화되어 할당이 시간이 지남에 따라 더 어려질 수 있다.<br>
 
+#### 외부단편화 : 사용 가능한 물리적 메모리 공간들 사이에 작은 조각들이 흩어져 있어서 충분한 크기의 연속된 메모리 공간을 할당할 수 없는 상태
+
 두 번째 방법으로 공간을 고정된 크기의 조각으로 분할하는 페이징이 있다.<br>
 프로세스의 주소 공간을 일부 가변 크기의 논리적 세그먼트(예: 코드, 힙, 스택)로 분할하는 대신에, 우리는 고정 크기의 단위인 페이지로 나눈다.<br>
 
@@ -1098,12 +1100,10 @@ VPN이 직접 페이지의 실제 위치를 나타내는 방법을 사용하지 
 
 ## 19 Paging: Faster Translations (TLBs)
 Paging의 문제점은 잦은 메모리 접근과 page table을 위한 메모리 사용으로 인한 메모리 낭비이다.<br>
+게다가 CPU가 메모리에 접근하여 page table 정보로 주소 변환을 하는 것은 매우 느린 변환 방법이다.<br>
+지금까지의 메커니즘을 개선할 때,  OS , HW의 도움을 받았던 것처럼 이번에도 OS, HW의 도움을 받아 개선해보자.<br>
 
-이 두개의 문제 중에서 잦은 메모리 접근을 보완하기 위한 Translation Lookaside Buffer(TLB)를 살펴보자.<br>
-
-Paging을 사용하여 메모리 가상화를 지원한다면 오버 헤드가 발생한다.<br>
-메모리에 자주 접근하게 되고 Page Table을 위한 메모리도 존재해야 한다.<br>
-메모리의 잦은 접근을 줄이기 위해 CPU의 MMU에 위치한 TLB를 사용한다.<br>
+이 두개의 문제 중에서 잦은 메모리 접근을 보완하기 위해 CPU의 MMU에 위치한 Translation Lookaside Buffer(TLB)를 살펴보자.<br>
 TLB에는 VPN(Virtual Page Number)과 PFN(Page Frame Number)정보가 쌍으로 저장되어 있다.<br>
 이를 사용해 주소변환을 하도록 도와주는 하드웨어 Cache이다.<br>
 
@@ -1187,7 +1187,7 @@ else
     RaiseException(TLB_MISS)
 ```
 
-OS로 TLB를 관리할 떄의 장점은 유연성이다.<br>
+OS로 TLB를 관리할 때의 장점은 유연성이다.<br>
 OS는 하드웨어의 변경 없이 Page Table을 구현하는 모든 자료 구조를 사용할 수 있다.<br>
 
 ### 19.4 TLB Contents: What’s In There?
@@ -1208,6 +1208,12 @@ TLB를 사용할 때 Context Swtitch가 발생한다면 어떻게 될까?<br>
 
 TLB에는 현재 실행중인 프로세스에 대한 Virtual Address와 Physical Address의 쌍이 저장되어 있다.<br>
 이러한 정보는 다른 프로세스에 대해서는 의미가 없다.<br>
+Context switch가 발생하면 현재 실행 중인 프로세스의 TLB에 저장된 가상 주소 변환 정보는 더 이상 유효하지 않다.<br> 
+
+예를 들어 프로세스 A의 가상주소가 10KB로서 실행되고 있다고 하자.<br>
+그런데 context switch가 발생하여 프로세스 B 10KB로 전환되었다고 하자.<br>
+그렇다면 프로세스 B의 실제 물리 메모리를 구하기 위해서는 현재 TLB를 사용하면 안된다.<br>
+
 따라서 Context Switch가 발생하면 하드웨어와 OS는 현재 실행 중인 프로세스의 변환 정보가 이전에 실행한 다른 프로세스의 변환 정보로 잘못 사용되지 않도록 주의해야한다.<br>
 
 
@@ -1232,17 +1238,17 @@ TLB에 저장 가능한 공간이 가득 찬 경우에 새로운 프로세스가
 ## 21 Beyond Physical Memory: Mechanisms
 지금까지는 가상 주소 공간이 작아서 물리 메모리에 들어갈 수 있다고 가정하였다.<br>
 
-이제 이러한 가정을 완화ㅏ고, 많은 동시 실행중인 큰 주소 공간을 지원하고자 한다.<br>
+이제 이러한 가정을 완화하고, 많은 동시 실행중인 큰 주소 공간을 지원하고자 한다.<br>
 
 이를 위해 memory hierarchy에 새로운 level을 추가한다.<br>
 메모리 계층을 다음과 같이 표현할 수 있다.<br>
 
-레지스터
-L1 캐시(SRAM)
-L2 캐시(SRAM)
-메인 메모리(DRAM)
-local storage(SSD, HDD)
-remote storate(SERVER)
+            레지스터
+        L1 캐시(SRAM)
+        L2 캐시(SRAM)
+        메인 메모리(DRAM)
+    local storage(SSD, HDD)
+    remote storate(SERVER)
 아래로 갈수록 싸고 느리고 크다.<br>
 
 
@@ -1423,4 +1429,1290 @@ OS는 usebit를 LRU를 근사하는 방법은 다음과 같다.<br>
 
 ### 22.9 Considering Dirty Pages
 메모리가 page에 있는 동안 page가 수정되었는지 여부를 알아야 한다.<br>
-수정된 page를 교체하려고 한다면 Disk에 다시 기록해야 해서 비용이 많이 들기 때문이다.<br> 수정되지 않은 page를 교체할 때는 I/O 없이 사용할 수 있지마ㅣㄴ
+수정된 page를 교체하려고 한다면 Disk에 다시 기록해야 해서 비용이 많이 들기 때문이다.<br> 수정되지 않은 page를 교체할 때는 I/O 없이 사용할 수 있지만, 수정된 page를 교체할 때는 I/O가 필요하다.<br>
+
+
+## 26 Concurrency: An Introduction
+지금까지는 OS가 수행하는 Abstraction에 대해 알아보았다.<br>
+
+단일 CPU를 여러 가상 CPU로 바꿔서 여러 프로그램이 동시에 실행되는 것처럼 보이게 하는 방법을 보았다. 또한, 각 프로세스에 대한 가상메모리를 만들어 각 프로그램이 자신만의 메모리를 가지고 있는 것처럼 보이게 하는 방법을 보았다.<br>
+
+이번 장에서는 실행 중인 단일 프로세스에 대한 새로운 추상화인 Thread를 소개한다.<br>
+스레드는 별도의 프로세스와 유사하지만 한 가지 차이점이 있다.<br>
+그것은 동일한 주소 공간을 공유하고 따라서 동일한 데이터에 액세스할 수 있다는 것이다.<br>
+
+#### Thread의 Context Switch는 주소 공간이 동일하게 유지!
+
+따라서 단일 Thread의 상태는 프로세스의 상태와 매우 유사하다.<br>
+PC(program counter)는 프로그램이 명령얼ㄹ 가져오는 위치를 추적한다.<br>각 스레드는 사용하는 개별적인 레지스터 세트를 가지고 있다. 따라서 단일 프로세서에서 실행 중인 두개의 스레드가 있는 경우 한 스레드에서 다른 스레드로 전환할 때마다 Context switch가 발생해야 한다.<br>
+스레드 간의 컨텍스트 스위치는 프로세스 간의 컨텍스트 스위치아 매우 비슷하다.
+
+예를 들면 T1의 레지스터 상태를 저장하고 T2의 레지스터 상태를 복원한 후 T2를 실행하지 전에 이루어진다.<br>
+
+프로세스의 경우 프로세스 상태를 PCB(프로세스 제어 블록)에 저장했지만 이제는 각 스레드의 상태를 저장하는 하나 이상의 TCB(Thread Control Block)이 필요하다.<br>
+
+여기서 프로세스 간 Context Switch와 비교하여 Thread 간의 컨텐스트 스위치의 주요한 차이점은 주소 공간이 동일하게 유지된다는 것이다.<br>
+
+Thread와 Process의 또 다른 차이점은 Stack과 관련된다.<br>
+프로세스의 주소 공간 모델에는 주소 공간 하단에 하나의 Stack이 있다.<br>
+그러나 MultiThread Process에서는 각 Thread는 독립적으로 실행되며, 작업을 수행하기위해 다양한 루틴으로 호출될 수 있다.<br>
+
+주소공간에는 단일 스택이 아니라 스레드 당 하나의 스택이 있다.<br>
+예를 들어 두 개의 스레드가 있는 멀티스레드 프로세스의 경우 주소 공간에는 두 개의 스택이 있다.<br>
+
+이로 인해 주소 공간 레이아웃이 망가짐을 알 수 있다.<br>
+이전에는 스택과 힙이 독립적으로 확장되고 주소 공간에 공간이 부족해지면 문제가 발생했다.<br>
+다행히도 Stack은 매우 크지 않아야 하므로 일반적으로는 문제가 되지 않는다. 재귀를 사용하는 경우는 Stack이 크므로 문제가 발생한다.<br>
+
+### 26.1 Why Use Threads?
+스레드를 사용하는 이유는 두 가지가 있다.<br>
+1. 병렬성 :
+
+예를 들어 두 개의 큰 배열을 더하거나 배열의 각 요소의 값을 어느 정도 증가시키는 작업을 한다고 가정해보자.<br>
+단일 프로세서에에서는 각 작업을 수행하고 끝내기만 하면 된다.<br>
+그러나 여러 프로세서를 가진 시스템에서 프로그램을 실행한다면, 각 프로세서를 사용하여 작업의 일부를 병렬로 수행함으로써 이 프로세스를 빨리 실행할 수 있다.<br>
+
+standard single-threaded program을 다중 CPU에서 이런 종류의 작업을 수행하는 프로그램으롭 변환하는 작업을 병렬화라고 한다.<br>
+이를 위해 각 CPU당 하나의 Thread를 사용하는 것은 현대 하드웨어에서 프로그램 실행 속도를 향상시키기 위한 자연스럽고 일반적인 방법이다.<br>
+
+2. 느린 I/O로 인해 프로그램 진행이 차단되는 것을 피하기 위해서:
+
+예를 메시지를 보내거나 받기를 기다리거나,디스크 I/O가 완료되기를 기다릴 때 다양한 유형의 I/O를 수행하는 프로그램을 생각해보자.<br>
+기다리는 대신 프로그램은 CPU를 사용하여 계산을 수행하거나 추가적인 I/O요청을 수행하는 등 다른 작업을 수행하길 원할 수 있다.<br>
+Thread를 사용하면 이러한 멈춤 상태를 피하는 것이 가능하다.<br>
+프로그램에서 하나의 스레드가 기다리는 동안(I/O를 기다리는 동안 차단됨),CPU 스케줄러는 실행할 준비가 된 다른 스레드로 전환하여 유용한 작업을 수행할 수 있다.<br>
+스레딩은 단일 프로그램 내에서 I/O와 다른 할동을 겹쳐서 수행할 수 있도록 해주며, 이는 다중 프로그래밍이 프로세스 간에 수행했던것과 유사한 효과를 낸다.<br>
+
+### 26.2 26.2 An Example: Thread Creation
+
+
+```C
+#include <stdio.h>
+#include <assert.h>
+#include <pthread.h>
+#include "common.h"
+#include "common_threads.h"
+
+void *mythread(void *arg) {
+printf("%s\n", (char *) arg);
+return NULL;
+}
+int
+main(int argc, char *argv[]) {
+pthread_t p1, p2;
+int rc;
+printf("main: begin\n");
+Pthread_create(&p1, NULL, mythread, "A");  // create thread A
+Pthread_create(&p2, NULL, mythread, "B"); // create thread B
+
+// join waits for the threads to finish
+Pthread_join(p1, NULL);
+Pthread_join(p2, NULL);
+printf("main: end\n");
+return 0;
+}
+```
+
+T1과 T2 두개의 스레드를 생성한 후 , 주 스레드는 특정 스레드가 완료될 때까지 기다리는 pthread_join을 호출한다.<br>
+Pthread_join()함수는 특정 쓰레드를 실행하고 완료되는 것을 기다리는 함수로 A, B 스레드가 종료된 뒤에 main 함수가 끝나게 된다.<br>
+주 스레드가 실행되면 main: end를 출력하고 종료한다.<br>
+이 예제에서는 주 스레드, T1, T2 세 개의 스레드가 실행되는 것을 볼 수 있다.<br>
+
+다만 쓰레드의 실행 순서는 예측할 수 없다.
+쓰레드가 실행되는 순서는 운영체제의 스케줄러에 의해 결정되기 때문이다.<br>
+
+### 26.3 Why It Gets Worse: Shared Data
+아까의 예시는 쓰레드의 실행 순서를 알 수 없다 라는 것을 보여주기 위한 예시이고 이번에는 순서를 몰라도 결과는 알 수 있는 예로 쓰레드가 어떻게 동작하는지 살펴보겠다.<br>
+
+스레드는 아까 언급한대로 Stack 부분을 제외하고는 주소 공간을 공유하기 때문에 전역 변수도 공유하게 된다.<br>
+이번 예에서는 동일한 전역 변수에 2개의 스레드가 접근하도록 해보겠다.<br>
+
+
+```C
+#include <stdio.h>
+#include <assert.h>
+#include <pthread.h>
+
+static volatile int counter = 0;
+
+void *mythread(void *arg) {
+    printf("%s: begin\n", (char *) arg);
+    int i;
+    // 전역변수 counter를 1씩 100만번 증가시킵니다.
+    for (i = 0; i < 1000000; i++){
+        counter += 1;
+    }
+    printf("%s: done\n", (char *) arg);
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    pthread_t p1, p2;
+    printf("main: begin (counter = %d)\n", counter);
+    pthread_create(&p1, NULL, mythread, "A");
+    pthread_create(&p2, NULL, mythread, "B");
+
+    pthread_join(p1,NULL);
+    pthread_join(p2,NULL);
+
+    printf("main: done (counter = %d)\n",counter);
+    return 0;
+}
+
+```
+각각의 스레드는 counter에 1을 100만번 더했다. 그것들 A,B 두번 실행했으니 200만이 나와야할 것이다.<br>
+
+하지만 
+> prompt> ./main
+> main: begin (counter = 0)
+> A: begin
+> B: begin
+> A: done
+> B: done
+> main: done with both (counter = 19345221)
+
+실행결과 는 200만에 못미친다.<br>
+한번 더 실행한 결과 : 
+
+>prompt> ./main
+>main: begin (counter = 0)
+>A: begin
+>B: begin
+>A: done
+>B: done
+>main: done with both (counter = 19221041)
+
+이번에는 결과가 다르게 나왔다. 왜 이런 결과가 발생하는 것일까?
+
+### 26.4 The Heart Of The Problem: Uncontrolled Scheduling
+200만이 나오지 않은 이유를 파악하기 위해 counter의 방식이 어떻게 수행되는지 확인해보자
+```C
+mov 0x8049a1c, %eax //메모리에 잇는 전역 변수를 가지고와서 레지스터에 넣는다.
+add $0x1, %eax // 레즈스터의 값을 1 증가시키고 
+mov %eax, 0x8049a1c //증가시킨 값을 다시 메모리에 로드한다.
+```
+
+변수 counter가 주소 0x8049a1c에 위치한다고 가정<br>
+먼저 x86의 mov 명령어가 사용되어 해당 주소의 메모리 값을 레지스터 eax에 가져오고 넣는다.<br>
+그런 다음 add가 수행되어 eax 레지스터의 내용에 1 (0x1)을 더하고, 마지막으로 eax의 내용을 동일한 주소에 있는 메모리에 다시 저장한다.<br>
+
+위의 어셈블리 코드는 전역 변수 counter에 1을 더하는 과정이다.   
+여기서 알 수 있는 사실은 메모리의 값을 바로 증가시키는 것이 아니라 레지스터로 가져온 다음 1 증가시키고 다시 메모리에 저장한다는 점이다.
+
+레지스터에 옮긴 뒤 값을 증가시키는 점과 예전 다중 프로그래밍을 구현하기 위한 메커니즘이었던 time sharing 기법을 다시 떠올리면 이 문제를 이해할 수 있다.<br>
+Time sharing 기법은 프로세스가 스케줄링되어 실행될 때 한 번에 실행할 수 있는 시간이 정해져 있어서 해당 시간이 지나면 다른 프로세스를 수행할 수 있다.
+
+위의 스레드의 결과가 200만이 되지 않는 이유는 다음과 같다.
+
+예를 들어 레지스터 eax 50의 값을 스레드 A가 가져온다. 그 후 1을 증가시킨 후 스레드에 time interrupt 가 발생하여 B가 시작된다. 하지만 이 B는 A와 별개이 레지스터를 가지고 있기 때문에 eax 50에서 값을 가져온 후 동작을 수행한다. 수행 도중 다시 time interrupt가 발생하고 A가 시작된다. 그렇다면 counter의 값은 여전히 51이므로 51을 저장한다. 이런 과정이 반복되며 최종 결과는 200만이 될 수 없는 것이다. 
+
+위와 같이 Context Switch가 발생할 때 레지스터의 상태도 저장하기 때문에 이러한 문제가 발생하게 된다.<br>
+이렇게 전역 변수와 같이 스레드에서 공유하는 데이터에 접근하는 상황을 race condition(경쟁상태)라고 하며 여기서 공유되는 전역변수를 Critical Section(임계 영역)이라고 한다.<br>
+
+따라서 어떤 스레드가 critical sectoin에 접근하는 중이라면 다른 스레드는 접근할 수 없도록 만들어줘야 하며 이를 Mutual Exclusion(상호배제)라고 한다.<br>
+
+### 26.5 The Wish For Atomicity
+이 문제는 타이밍이 적절하지 않은 인터럽트의 가능성을 없앨 수 있는 더 강력한 명령어를 갖는 것이다.<br>
+
+다음과 같은 super instuction이 있다고 가정하자.
+memory-add 0x8049a1c, $0x1
+
+이 명령어는 값을 메모리 위치에 추가하고, 하드웨어는 실행을 automically 보장한다.(단위로 실행되는 것 같다.)
+즉 이 명령어는 하드웨어의 지원으로 인터럽트로 인해 중간에 중단될 수 없다.
+
+이제 하드웨어의 지원을 받아
+mov 0x8049a1c, %eax
+add $0x1, %eax
+mov %eax, 0x8049a1c
+이 세개의 명령어를 단위로 묶어서 실행함으로써 위의 문제를 해결했다.<br>
+
+### 26.6 One More Problem: Waiting For Another
+한 스레드가 어떤 작업을 완료할 때까지 다른 스레드가 기다려야 하는 상황이 발생한다.<br>
+예를 들어 프로세스가 디스크 I/O를 수행하고 슬립 상태에 들어간 경우, I/O가 완료되면 프로세스를 깨워서 계속할 수 있어야 한다.<br>
+
+그래서 다름 장에서 automicity(원자성?)을 지원하기위한 동기화 기본 구조와, 멀티스레드 프로그램에서 흔히 발생하는 이러한 슬립/깨움 상호작용을 지원하기 위한 메커니즘에 대해서도 공부하게 될 것이다.<br>
+
+
+----
+
+## 27 Interlude: Thread API
+쓰레드를 만드는 함수
+```C
+#include <pthread.h>
+int pthread_create(pthread_t *thread,    // 스레드에 대한 정보
+    const pthread_attr_t *attr,      // 스레드의 속성
+    void    *(*start_routine)(void *), // 스레드가 할 일
+    void    *arg);      // arguments
+```
+첫 번째 매개변수인 *thread는 pthread_t 구조체이다.
+이 구조체를 사용하여 스레드와 상호 작용하기 때문에 스레드를 만들 때 필요한 정보이다.<br>
+두 번째 매개변수 attr은 스레드가 가질 수 있는 속성을 지정하는 데 사용한다.
+스레드 별 Stack의 크기, Thread의 스케줄링 우선순위 등이 여기 포함될 수 있는 속성들이다.<br>
+세 번째 매개변수는 스레드가 할 일이라고 보면 된다.
+마지막 매개변수 arg는 스레드의 시작 함수, 즉 아까 세번째 매개변수에서 받은 함수에 전달한 매개변수에 대한 정보이다.
+
+
+실제 예시
+```C
+#include <stdio.h>
+#include <pthread.h>
+
+typedef struct {
+    int a;
+    int b;
+} myarg_t;    
+
+void *mythread(void *arg) {
+    myarg_t *args = (myarg_t *) arg;
+    printf("%d %d\n", args->a, args->b);
+    return NULL;
+}
+
+int main(int argc, char *argv[]){
+    pthread_t p;
+    myarg_t args = {10, 20};
+    
+    int rc = pthread_create(&p, NULL, mythread, &args);
+    
+    return 0;
+}
+```
+
+
+스레드를 만들었으니 스레드가 실행 완료되기를 기다리는 방법 : pthread_join() 함수를 사용하면 된다.
+
+```C
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+
+typedef struct { int a; int b; } myarg_t;
+typedef struct { int x; int y; } myret_t;
+
+void *mythread(void *arg) {
+    myret_t *rvals = malloc(sizeof(myret_t));
+    rvals->x = 1;
+    rvals->y = 2;
+    return (void *) rvals;
+}
+
+int main(int argc, char *argv[]){
+    pthread_t p;
+    myret_t *rvals;
+    myarg_t args = {10, 20};
+    
+    // 스레드 생성
+    pthread_create(&p, NULL, mythread, &args);
+    // 스레드 완료 기다림
+    pthread_join(p, (void **) &rvals);
+    // 반환 된 값 출력
+    printf("returned %d %d\n", rvals->x, rvals->y);
+    free(rvals);
+    return 0;
+}
+```
+
+### 27.3 Locks
+Lock : critical section에 mutual exclusion을 제공하는 기능이다.
+
+```C
+int pthread_mutex_lock(pthread_mutex_t *mutex);
+int pthread_mutex_unlock(pthread_mutex_t *mutex);
+```
+
+간단한 예시:
+```C
+pthread_mutex_t lock;
+pthread_mutex_lock(&lock);
+x = x + 1; // pthread_mutex_unlock(&lock);이 호출되기 전까지 접근 불가
+```
+lock을 하나 만들고 이를 실행하면 해당 스레드가ㅏ lock을 가지고 있지 않다면 현재 스레드가 lock을 가지고 critocal section에 접근한다.<br>
+lock을 해제하기 전까진 스레드가 반환되지도 않고 다른 스레드들은 critical section에 접근할 수도 없다.
+
+
+이 코드는 문제가 있는데, 이는  lack of proper initialization
+즉 적절한 초기화가 없다, 라는 것이다.<br>
+모든 lock은 생성되기에 적절한 값을 가지고 있기 때문에 lock, unlock이 호출될 때 원하는 대로 작동하기 위해 적절하게 초기화되어야 한다. POSIX 스레드를 사용할 땐 lock을 초기화 하는 방법이 두가지가 있다.
+
+>POSIX 스레드란? POSIX 표준에 정의된 스레드 인터페이스
+
+그 중 한가지는
+```C
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+```
+이렇게 하면 lock이 default 값으로 설정되어 사용할 수 있게 된다.
+
+또 다른 방법으로는 동적으로 생성하는 것이다.
+```C
+int rc = pthread_mutex_init(&lock, NULL); 
+assert(rc == 0);
+```
+thread_mutex_init 함수의 첫 번째 매개변수는 lock의 주소이고 두 번째 매개변수는 lock의 속성들이다. 위와 같이 사용하면 기본값으로 설정하게 된다. 보통은 위와 같은 방법을 사용하며 lock을 해제하고 싶다면 pthread_mutex_destory() 함수를 호출하면 된다.
+
+아까 코드의 또 다른 문제는 lock, unlock을 할 때 오류 코드를 확인하지 못한다는 것이다.
+lock, unlock 역시 실패할 수 있으며 왜 실패하는지를 모른다면 잘못된 줄도 모르고 스레드들의 임계 역역 접근을 모두 허용해서 문제를 발생할 수 있다.
+이를 보완한 함수는 다음과 같다.
+```C
+int pthread_mutex_trylock(pthread_mutex_t *mutex); 
+int pthread_mutex_timedlock(pthread_mutex_t *mutex, struct timespec *abs_timeout);
+```
+둘다 lock을 생성할 때 사용하는 함수이며, 이름에서 느껴지듯 trylock은 , lock을 시도해보고 실패하면 이를 알려준다.<br>
+timelock은 lock을 획득하려고 하다가 시간이 초과할 때 이를 그냥 반환해준다.<br>
+
+이는 나중에 배울 getting stuck(교착상태), deadlock에 대해 배울 때 사용하면 좋다.
+
+
+### 27.4 Condition Variables
+
+POSIX 스레드에는 condition variable(조건 변수)이라는 것이 있다. 조건 변수는 스레드 간에 어떤 신호를 주고받아야 할 때 유용하다.<br> 
+예를 들어 어떤 스레드가 다른 스레드가 완료된 다음 수행되어야 할 때 사용할 수 있다, 이러한 상호 작용에는 두 가지 함수를 주로 사용한다.
+
+```C
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex); 
+int pthread_cond_signal(pthread_cond_t *cond);
+```
+
+기다리는 함수와 신호를 주는 함수이다. 
+이를 사용하기 위해서는 이를 처리해줄 lock이 필요하다.<br> 
+간단히 설명하자면 어떤 스레드에 wait를 주게 되면 스레드는 어떤 신호를 받을 때까지 기다리게 되고, 그러다 signal 함수에 의해 어떤 신호를 전달받으면 다시 스레드가 실행된다.
+
+ 
+
+간단하게 사용하는 예
+
+```C
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+// lock을 건다
+Pthread_mutex_lock(&lock);
+
+while (ready == 0)
+    Pthread_cond_wait(&cond, &lock);
+    
+Pthread_mutex_unlock(&lock);
+```
+
+
+위와 같이 어떤 스레드가 ready라는 변수가 0이 아닐 때까지 무한루프를 돌게된다.<br>
+기다리고 있는 이 스레드를 다시 실행하기 위해서는 신호를 보내줘야 하는데, 신호를 보내주는 코드는 아래와 같다.
+
+```C
+Pthread_mutex_lock(&lock); 
+
+ready = 1; 
+Pthread_cond_signal(&cond); 
+
+Pthread_mutex_unlock(&lock);
+```
+
+위와 같이 ready의 값을 변경해줘서 신호를 주게 되는 것이다. 이렇게 신호를 주고받을 때는 항상 lock을 유지해야 한다. 그렇지 않으면 경쟁 상태가 될 수 있기 때문에 원하지 않을 때 스레드에 신호를 보내게 될 수도 있다.
+
+----
+
+## 28 Locks
+Concurrency(동시성)에 대해 알아봤을 때 문제점들이 몇 가지 존재했다.<br>
+그 중 하나는 명령의 원자성을 보장하지 못한다는 것이다. 이는 여러 스레드가 동시에 같은 변수에 접근할 때 발생할 수 있는 문제이다.<br>
+
+>원자성이란?
+>작업이 시작했을 때 끝날 때까지 실행됨을 보장하는 것
+
+원자적으로 진행하지 못한다면 스레드의 특징 중 하나인 데이터를 공유한다는 것 때문에 데이터 무결성이 보장되지 못할 수 있다.<br>
+이를 해결하기 위해 lock을 알아보자.
+
+### 28.1 Locks : The Basic Idea
+
+>critical section(임계 영역) : 여러 스레드 또는 프로세스가 동시에 접근해서 변경할 수 있는 공유 데이터를 포함한 코드 영역이다.
+
+다음과 같이 Critical section에 접근하는 코드가 있다고 하자.
+
+```C
+balance = balance + 1;
+```
+이 코드애 Lock을 사용하려면 아래와 같이 코드를 추가하면 된다.
+```C
+lock_t mutex;
+
+lock(&mutex);
+balance = balance + 1;
+unlock(&mutex);
+```
+
+lock 변수를 하나 선언하고 Critical Section에 접근하기 전에 lock을 걸어줍니다. 만약 다른 스레드가 lock을 가지고 있지 않다면 현재 스레드가 lock을 가지고 임계 영역에 접근하게 된다.<br>
+critical section에서 작업이 끝나면 unlock으로 lock을 해제하여 다른 스레드들이 critical section에 접근할 수 있도록 하면 된다.
+
+### 28.2  Pthread Locks
+mutex : Posix 라이브러리에서 lock에 사용하는 이름이다.
+
+위의 코드를 mutex로 바꾸면 다음과 같다.
+```C
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_lock(&lock);
+balance = balance + 1;
+pthread_mutex_unlock(&lock);
+```
+
+### 28.3  Building A Lock
+이제 위의 코드가 어떻게 작동하는지 알아보자.<br>
+Lock을 만들기위해서는 하드웨어와 OS의 지원이 필요하다.
+이를 위한 여러가지 명령어 세트들과 OS의 지원을 받아 Lock을 만드는 방법을 지금부터 알아보자.
+
+### 28.4 Evaluating Locks
+Lock을 만드는 방법을 알아보기 전에 어떤 Lock이 좋은 지부터 알아보자.<br>
+Lock을 구현하기 위해서는 다음 세 가지를 고려해야한다.
+
+1. Mutual Exclusion(상호 배제):
+Lock을 만든 이유이다.
+
+
+2. Fairness(공정성):
+여러 개의 스레드가 lock을 획득하려고 할 때 스레드들이 공평하게 lock을 얻을 수 있는지에 대한 것이다.
+
+>starve(기아 상태) : 어떤 스레드가 우선순위에 밀려 계속해서 Lock을 획득하지 못하는 상태.
+
+3. Performance(성능): Lock을 만들고 사용하는 것도 당연하게 자원이 사용된다.만약 한 개의 스레드만 존재하는데 Lock을 걸고 해제하는 것은 오히려 시간낭비가 될 것이다.<br>
+또한 여러개의 스레드가 있을 때 lock을 획득하기위해 경쟁하는 경우에서의 성능을 살펴볼 필요가 있다.<br>
+
+### 28.5  Controlling Interrupts
+
+어떠한 명령어가 원자성을 보장하지 못하는 이유 중 하나는 인터럽트 때문이다.<br>
+따라서 간단하게 원자성을 구현하는 방법은 인터럽트를 막는 것이다.<br>
+
+```C
+// lock을 획득 할 땐 인터럽트를 무시하도록 만듭니다.
+void lock() {
+    DisableInterrupts();
+}
+
+// unlock 할 때는 다시 인터럽트를 받도록 만듭니다.
+void unlock() {
+    EnableInterrupts();
+}
+
+```
+스레드가 critical section에 접근 중일 때는 인터럽트를 받지 않는것이다.
+
+이 방법의 문제점은 다음과 같다.
+1.  스레드가 인터럽트를 켜고 끌 수 있는 권한이 있어야 한다는 것이고, 그 권한을 줄 신뢰성이 있어야 한다는 것이다.<br>
+하지만 스레드는 임의의 프로그램을 수행하므로 신뢰성을 보장한다고 할 수 없다.<br>
+
+2. 멀티 프로세서에서는 작동하지 않는다.<br>
+여러 개의 스레드가 다른 CPU에서 실행 중이고 각 스레드가 동일한 critical section에 접근하려고 할 때 인터럽트를 끄는 것은 중요하지않다.<br>
+
+3. 인터럽트를 끄는 것 자체의 문제이다.<br>
+예를 들어 CPU가 디스크 읽기 요청을 완료한 사실을 인터럽트로 보냈는데 이를 무시하여 OS가 이를 요청한 프로세스를 영원히 대기 상태로 유지하는 문제가 발생할 수 있다.<br>
+
+그래서 이 방법은 신뢰성이 높은 작업, 즉 OS 자체 작업에서 사용할 수 있다.<br>
+
+### 28.6  A Failed Attempt: Just Using Loads/Stores
+이번에는 하드웨어의 지원을 받아 단일 flag 변수를 사용하여 구현해보자.<br>
+
+```C
+typedef struct __lock_t { int flag; } lock_t;
+
+void init(lock_t *mutex) {
+    mutex->flag = 0;
+}
+
+void lock(lock_t *mutex) {
+    // mutex flag가 1인 경우엔 아무것도 안하고 무한루프만 돕니다.
+    while(mutex->flag == 1)
+    
+    // while문을 벗어나면 mutex flag를 1로 수정하여 lock을 얻습니다.
+    mutex->flag = 1;
+}
+
+void unlock(lock_t *mutex) {
+    mutex->flag = 0;
+}
+```
+
+flag를 하나 만들어서 lock을 구현하는 방법이다.<br>
+Flag가 1이면 lock이 걸려있는 상태이고 0이면 lock이 걸려있지 않은 상태이다.<br>
+
+이 방법의 문제점은 다음과 같다.
+1. 어떤 스레드가 Lock을 획득한 시점부터는 다른 스레드들은 모두 lock을 얻지 못하고 무한루프를 돌고 있다.이를 spin wait라고 하며 성능적으로 좋지 않다.
+
+2. 정확성이 보장되지 않는다.<br>
+만약 Thread가 2개 있다고 하자.
+Thread 1이 lock을 획득하고 critical section에 들어가기 직전에 인터럽트가 발생하여 Thread 2로 Context switch된 후 Thread 2가 Lock을 얻고 Context swtich가 발생하여 Thread 1이 다시 실행되어 Lock을 얻는다면, Lock을 두 스레드가 얻었으므로 원자성을 잃었다고 할수 있다.<br>
+
+### 28.7  Building Working Spin Locks with Test-And-Set
+이제부터 새로운 하드웨어 지원을 사용하여 Lock을 구현해보자.<br>
+
+가장 간단한 하드웨어 지원 방법은 Test-And-Set 혹은 atomic exchange 명령어이다.<br>
+
+```C
+int TestAndSet(int *old_ptr, int new) {
+    int old = *old_ptr;
+    *old_ptr = new;
+    return old;
+}
+
+```
+이전에 ptr가 가리키던 값을 반환하고 현재 ptr은 new로 설정한다.<br>
+test-and-set 명령어는 하드웨어에서 원자적으로 동작하는 명령어이다.<br>
+이름이 TestAndSet인 이유는ptr을 새로운 값으로 수정하면서 이전에 가리키던 값을 반환하여 lock을 얻기에 적합한 스레드인지를 확인할 수 있기 때문이다.
+
+이를 이용하면 spin-wait을 쉽게 구현할 수 있다.<br>
+
+```C
+typedef struct __lock_t { int flag; } lock_t;
+
+void init(lock_t *lock) {
+    lock->flag = 0;
+}
+
+void lock(lock_t *lock) {
+    // TestAndSet의 반환값이 1일 경우에만 while 탈출합니다.
+    while(TestAndSet(&lock->flag, 1) == 1)
+    // while문을 벗어나면 lock flag를 1로 수정하여 lock을 얻습니다.
+    lock->flag = 1;
+}
+
+void unlock(lock_t *lock) {
+    lock->flag = 0;
+}
+```
+
+lock 함수는 Testandset 함수의 반환값이 1인 동안 반복문을 실행한다.<br>
+
+Testandset 함수는 lock->flag의 현재 값을 가져오고 flag 값을 1로 설정하는 원자적인 연산을 수행한다.<br>
+따라서 TestandSet 함수의 반환값이 1인 경우는 다른 스레드가 이미 lock을 가지고 있는 경우이다.<br>
+이 경우에는 계속해서 반복문을 실행하여 다른 스레드가 lock을 해제할 때까지 기다린다.<br>
+
+반복문을 벗어난 후에는 lock->flag 값을 1로 설정하여 lock을 얻는다.<br>
+이로써 현재 스레드가 lock을 소유하게 된다.<br>
+
+unlock 함수는 lock 함수와는 반대로 lock->flag 값을 0으로 설정하여 lock을 해제한다.<br>이를 통해 다른 스레드가 lock을 얻을 수 있게 된다.<br>
+
+
+
+하지만 아직도 spin wait 상태가 남아 있다. Spin wait 상태는 CPU를 사용하지 않는 상태가 아닌 사용 중인 상태이며 단일 프로세서에서 선점형 스케줄러가 없다면 혼자 계속 spin wait만 하며 다른 프로세스의 CPU 사용을 막을 수 있다. 따라서 스케줄링을 해줘서 독점을 하지 못하도록 해줘야한다.<br>
+
+### 28.8  Evaluating Spin Locks
+지금까지의 Spin Lock을 세 가지 기준으로 평가해보자
+
+1. 정확성 : 상호배제를 잘 수행하였다.
+2. 공정성 : 공정성이 보장되지 않는다.
+3. 성능  :  Spin wait 방법은 CPU를 계속 사용하며 대기를 하는 것이므로 좋은 성능을 보장하지 못한다.
+
+
+###  28.9  Compare-And-Swap
+
+일부 시스템에서 제공하는 Compared-and-swap 혹은 compare-and-exchange 명령어를 사용하는 방법도 있다.<br>
+
+```C
+int CompareAndSwap(int *ptr, int expected, int new) {
+    // 기존 값을 original에 저장합니다.
+    int original = *ptr;
+    // 만약 기존 값과 expected 값이 같다면 ptr의 값을 new로 수정합니다.
+    if(original == expected)
+        *ptr = new;
+    // 기존 값을 반환합니다.
+    return original;
+}
+
+void init(lock_t *lock) {
+    lock->flag = 0;
+}
+
+void lock(lock_t *lock) {
+    while(CompareAndSwap(&lock->flag, 0, 1) == 1)
+}
+
+void unlock(lock_t *lock) {
+    lock->flag = 0;
+}
+```
+이 방법 역시 Spin wait를 사용한다.
+
+### 28.10  Load-Linked and Store-Conditional
+Load-Linked and   Store-Conditional 명령어를 사용하여 Lock을 구현하기도 한다.
+```C
+int LoadLinked(int *ptr) {
+    return *ptr
+}
+
+int StoreConditional(int *ptr, int value) {
+    if(이코드가 실행될 때까지 *ptr에 변화가 없다면) {
+    // 그제서야 *ptr의 값 변경
+        *ptr = value;
+        return 1;
+    } else {
+        return 0;
+    }
+}
+```
+일반적인 load 명령어와 비슷하게 동작하고 메모리에서 값을 가져와서 레지스터에 배치하기만 한다.
+차이점은 저장 조건이 존재한다는 것이다.<br>
+주소에 대한 값이 변경되지 않은 경우에만 값을 업데이트한다.<br>
+
+이를 이용하여 Lock을 구현해보자.<br>
+
+```C
+void lock(lock_t *lock) {
+    while(1) {
+        // flag 값이 1인지 확인합니다. 만약 아니라면 spin
+        while (LoadLinked(&lock->flag) == 1)
+            ;
+        // flag 값이 0이므로 lock을 획득 가능하고
+        // flag 값을 1로 다시 설정하는데 StoreConditional 명령어를 사용합니다.
+        if (StoreConditional(&lock->flag, 1) == 1)
+            return;
+        }
+    }
+}
+
+void unlock(lock_t *lock) {
+    lock->flag = 0;
+}
+```
+
+### 28.11  Fetch-And-Add
+```C
+int FetchAndAdd(int *ptr) {
+    int old = *ptr;
+    *ptr = old + 1;
+    return old;
+}
+```
+
+
+```C
+typedef struct __lock_t {
+    int ticket;
+    int turn;
+} lock_t;
+
+void lock_init(lock_t *lock {
+    lock->ticket = 0;
+    lock->turn = 0;
+}
+
+void lock(lock_t *lock) {
+    // 자신의 티켓 번호를 받습니다.
+    int myturn = FetchAndAdd(&lock->ticket);
+    // lock의 turn과 자신의 티켓이 같을 때까지 spin
+    while (lock->turn != myturn)
+        ;
+}
+
+// unlock을 하게 되면 turn+1을 하여 특정 스레드에게 lock 획득 권한을 줍니다.
+void unlock(lock_t *lock) {
+    lock->turn = lock->turn + 1;
+}
+```
+
+이 방법을 특징은 turn 개념을 도입하여 모든 스레드가 언젠가는 lock을 획득할 수 있도록 한다는 것이다.<br>
+ lock을 호출하면 스레드에게는 자신의 ticket 넘버를 받게 된다. lock을 이미 가진 스레드가 unlock을 호출하면 turn 값이 1씩 증가하여 해당 turn 값을 가진 스레드가 lock을 얻게 됩니다.
+
+### 28.12  Too Much Spinning : What Now?
+지금까지 알아본 방법들은 모두 하드웨어 기반의 lock 방법이며, spin wait를 사용하는 방법으로, lock을 획득하지 못한 스레드는 lock을 얻을 때까지 무한루프를 돌게되는 방법이다.
+하지만 무한루프를 도는 것 자체가 CPU낭비인데 이를 해결하기 위해 OS의 지원을 받도록 하자.
+
+
+### 28.13  A Simple Approach: Just Yield, Baby
+Spin 중인 스레드가 CPU를 포기하고 다른 스레드가 실핼할 수 있도록 OS에서 제공하는 yield 명령어를 사용하면 된다.<br>
+스레드는 ready , running, blocked 세 가지 상태가 존재하는데, yield는 running 상태의 스레드를 ready 상태로 변경하는 system call이다.
+
+```C
+void init() {
+    flag = 0;
+}
+
+void lock() {
+    while(TestAndSet(&flag, 1) == 1)
+        yield();
+}
+
+void unlock() {
+    flag = 0;
+}
+```
+위와 같이 yield를 사용하면 CPU를 낭비하지 않고 다른 스레드에게 CPU를 양보할 수 있다.<br>
+하지만 스레드의 개수가 많다면 lock을 기다리는 과정에서 계속해서 다른 스레드에게 양보를 하게 되고 이렇게 양보하는 과정에서 Context switching 비용이 계속해서 발생한다는 문제가 있다.
+
+### 28.14  Using Queues: Sleeping Instead Of Spinning
+spin wait가 발생하지 않는 대신 계속되는 양보로 Context Switching비용이 크게 발생할 수 있는 문제와, 기아 문제를 해결하지 못한 문제가 존재한다.<br>
+
+따라서 현재 Lock을 가진 스레드가 unlock한 후에  lock을 얻을 스레드를 정해준다면?
+
+이를 위해 Solaris 시스템에서 제공하는  system call인 park와 unpark를 사용하면 된다.<br>
+이를 사용하여 어떤 스레드가 lock을 획득하지 못하면 절전 모드로 전환했다가 lock을 가진 스레드가 unlock을 호출하면 unpark로 특정 스레드를 깨워주는 방법을 사용할 수 있다.<br>
+
+```C
+typedef struct __lock_t {
+    int flag;
+    int guard;
+    queue_t *q;
+} lock_t;
+
+void lock_init(lock_t *m) {
+    m->flag = 0;
+    m->guard = 0;
+    queue_init(m->q);
+}
+
+void lock(lock_t *m) {
+    // guard가 0이 될 때까지 spin
+    while(TestAndSet(&m->guard, 1) == 1)
+        ;
+    
+    // guard가 0이고 flag가 0이면 lock을 얻어도 되는 시점
+    if (m->flag == 0) {
+        m->flag = 1;
+        m->guard = 0;
+    // guard는 0이지만 flag가 1이면 queue에 자신을 추가후 대기상태로
+    } else {
+        guard_add(m->q, gettid());
+        m->guard = 0;
+        park()
+    }
+}
+
+void unlock(lock_t *m) {
+    // guard가 0이 될 때까지 spin
+    while(TestAndSet(&m->guard, 1) == 1)
+        ;
+    // 만약 queue가 비었다면 flag = 0
+    if (queue_empty(m->q))
+        m->flag = 0;
+    // queue가 빈 것이 아니라면 queue에서 하나를 run상태로 수정
+    else
+        unpark(queue_remove(m->q));
+    m->guard = 0;
+}
+```
+
+guard :
+1. lock을 획득하기위해 경합 상황에서의 보호 역할을 한다.TestAndSet() 연산을 사용하여 스레드들이 guard 변수를 변경하며 경합을 벌이는데, 이를 스핀 락(Spin Lock)이라고 합니다. 하나의 스레드가 guard를 0으로 설정하고 락을 획득하면, 다른 스레드들은 guard가 0이 될 때까지 스핀 루프를 돌면서 대기합니다. 이를 통해 한 번에 하나의 스레드만이 락을 획득하도록 보호하며, 경합 상황에서의 상호배제를 달성합니다.
+2. 락의 상태 표시: guard 변수는 락의 현재 상태를 나타냅니다. guard가 0이면 락이 해제된 상태를 의미하고, 1이면 락이 획득된 상태를 의미합니다. flag 변수와 함께 조합하여 락의 상태를 나타냅니다. 예를 들어, flag가 0이고 guard가 1인 경우는 락을 획득하려는 스레드가 대기해야 함을 나타냅니다. 반대로, flag가 1인 경우는 락이 이미 획득된 상태를 나타내며, 다른 스레드가 락을 획득하기 위해 대기해야 함을 나타냅니다.
+
+----
+## 29 Lock-based Concurrent Data Structures
+
+이제 특정한 데이터구조가 주어졌을 때, 올바르게 동작하도록 락을 추가하는 방법을 알아보자.<br>
+여러 스레드가 동시에 구조에 액세스할 수 있도록 하여 성능을 높이는 방법은 무엇일까?<br>
+
+### 29.1 Concurrent Counters
+
+다음 예시를 살펴보자.
+```C
+typedef struct counter_t {
+    int value;
+} counter_t;
+
+void init(counter_t *c) {
+    c->value = 0;
+}
+
+void increment(counter_t *c) {
+    c->value++;
+}
+
+void decrement(counter_t *c) {
+    c->value--;
+}
+
+int get(counter_t *c) {
+    return c->value;
+}
+
+```
+위의 자료구조로 아래의 코드를 실행해보자.
+```C
+counter_t counter;
+
+// counter 값을 1씩 10000번 더합니다
+void *plusCounter(void *arg) {
+    printf("plus begin\n");
+    for (int i=0; i < 10000; i++) {
+        increment(&counter);
+    }
+    return NULL;
+}
+
+// counter 값을 1씩 10000번 뺍니다
+void *minusCounter(void *arg) {
+    printf("minus begin\n");
+    for (int i=0; i < 10000; i++) {
+        decrement(&counter);
+    }
+    return NULL;
+}
+int main() {
+    pthread_t p1,p2;
+    init(&counter);
+    printf("main : begin (counter = %d)\n",counter.value);
+    pthread_create(&p1, NULL, plusCounter, "A");
+    pthread_create(&p2, NULL, minusCounter, "B");
+
+    pthread_join(p1,NULL);
+    pthread_join(p2,NULL);
+
+    printf("counter's value : %d\n", get(&counter));
+}
+```
+하나의 스레드는 counter 값을 1씩 10000번 더하고, 다른 스레드는 1씩 10000번 뺀다.<br>
+결과는 0 이 나와야하지만 실제결과값은 실행할 때마다 달라지고 0이 나오지 않는다.<br>
+이는 Mutual Exclusion을 보장하지 못하기 때문에 발생하는 문제이다.<br>이제 lock과 unlock을 이용해 원자성을 확보한 후 실행해보자.
+
+```C
+typedef struct counter_t {
+    int value;
+    pthread_mutex_t lock;
+} counter_t;
+
+void init(counter_t *c) {
+    c->value = 0;
+    pthread_mutex_init(&c-> lock, NULL);
+}
+
+void increment(counter_t *c) {
+    pthread_mutex_lock(&c->lock);
+    c->value++;
+    pthread_mutex_unlock(&c->lock);
+}
+
+void decrement(counter_t *c) {
+    pthread_mutex_lock(&c->lock);
+    c->value--;
+    pthread_mutex_unlock(&c->lock);
+}
+
+int get(counter_t *c) {
+    pthread_mutex_lock(&c->lock);
+    int rc = c->value;
+    pthread_mutex_unlock(&c->lock);
+    return rc;
+}
+```
+
+이제 실행해보면 0이 나오는 것을 확인할 수 있다.<br>
+단일스레드만으로 실행했을 때보다 두개의 스레드가 동시에 실행되었을 때 더 오래걸리는 것을 확인할 수 있다.<br>
+스레드가 많아질수록 시간은 더 오래 걸리는데 이상적인 작업은 여러 프로세서에서 스레드가 단일 스레드가 수행하는 것과 동일한 속도로 작업을 완료하는 것이다..<br>
+이 목표를 달성하는 것을 Perfact Scaling(완벽한 확장성)이라고 한다.<br>
+
+lock을 사용할 때 스레드의 수 가 많아지면 성능이 나빠지는 문제를 해결하기 위해 approximate counter라는 방법을 사용할 수 있다.<br>
+
+#### 근사 카운터 : 단일 논리적 카운터를 여러 개의 로컬 물리적 카운터로 표현하며, 각 CPU코어당 하나의 로컬 카운터와 하나의 전역 카운터를 포함한다.<br>
+예를 들어 4개의 CPU가 있는 머신의 경우, 4개의 로컬 카운터(local counter)와 1개의 전역 카운터(global counter)가 있다.<br>각 CPU 코어는 하나의 local 카운터와 전체적으로 공유하는 global 카운터가 있는 셈이다.<br>각 코어마다 존재하는 하나의 local 카운터에 값을 증가시키다가 일정 값에 가까워지면 이를 gloval카운터에 더하는 아이디어이다.<br>
+
+근사 카운팅의 기본 아이디어는 다음과 같다.<br>
+특정 코어에서 실행 중인 스레드가 카운터를 증가시키려면 해당 코어의 로컬 카운터를 증가시킨다.<br>
+이 로컬 카운터에 대한 접근은 해당하는 로컬 락을 통해 동기화된다.<br>
+각 CPU가 자체 로컬 카운터를 가지고 있기 때문에 다른 CPU 간에는 로컬 카운터를 경합 없이 업데이트할 수 있으므로 카운터의 업데이트는 확장 가능하다.<br>
+
+local 카운터의 값이 Threshold 값이 되면 global 카운터에 저장한다. 이 threshold가 작을수록 자주 global 카운터에 저장되므로 lock, unlock 을 호출하는 빈도수가 증가하여 성능이 떨어진다.<br>그렇다고 threshold 가 너무 크면 global 값에 원하는 값과 거리가 먼 값이 저장될 수 있다.<br>
+
+
+### 29.2 Concurrent Linked Lists
+다음으로 더 복잡한 구조인 Linked List를 살펴보자.<br>
+
+```C
+void List_Init(list_t *L) {
+    L->head = NULL;
+    pthread_mutex_init(&L->lock, NULL);
+}
+
+void List_Insert(list_t *L, int key){
+    node_t *new = malloc(sizeof(node_t));
+    if (new == NULL) {
+        perror("malloc");
+        return;
+    }
+    new->key = key;
+
+    // just lock critical section
+    pthread_mutex_lock(&L->lock);
+    new->next = L->head;
+    L->head = new;
+    pthread_mutex_unlock(&L->lock);
+}
+
+int List_Lookup(list_t *L, int key){
+    int rv = -1;
+    pthread_mutex_lock(&L->lock);
+    node_t *curr = L->head;
+    while (curr) {
+        if (curr->key == key) {
+            rv = 0;
+            break;
+        }
+        curr = curr->next;
+    }
+    pthread_mutex_unlock(&L->lock);
+    return rv; // now both success and failure
+}
+```
+위의 코드는 critical section에 접근할 때만 lock을 획득하게 한다.<br>
+이 linked list 역시 스레드 수가 늘어날 때 성능이 저하되는 것을 방지해야 하는데
+이를 방지하는 방법 중 하나가 Hand-over-hand locking이다.<br>
+hand-over-hand locking은 전체 list에 lock을 사용하는 것이 아니라 linked list의 모든 노드에 lock을 걸어서 성능을 높이는 방법이다.<br>
+
+### 29.3 Concurrent Queues
+```C
+typedef struct __node_t {
+    int value;
+    struct __node_t *next;
+} node_t;
+
+typedef struct __queue_t {
+    node_t *head;
+    node_t *tail;
+    pthread_mutex_t headLock;
+    pthread_mutex_t tailLock;
+} queue_t;
+
+void Queue_Init(queue_t *q) {
+    node_t *tmp = malloc(sizeof(node_t));
+    tmp->next = NULL;
+    q->head = q->tail = tmp;
+    pthread_mutex_init(&q->headLock, NULL);
+    pthread_mutex_init(&q->tailLock, NULL);
+}
+
+void Queue_Enqueue(queue_t *q, int value) {
+    node_t *tmp = malloc(sizeof(node_t));
+    assert(tmp != NULL);
+    tmp->value = value;
+    tmp->next = NULL;
+
+    pthread_mutex_lock(&q->tailLock);
+    q->tail->next = tmp;
+    q->tail = tmp;
+    pthread_mutex_unlock(&q->tailLock);
+}
+
+int Queue_Dequeue(queue_t *q, int *value) {
+    pthread_mutex_lock(&q->headLock);
+    node_t *tmp = q->head;
+    node_t *newHead = tmp->next;
+    if (newHead == NULL) {
+        pthread_mutex_unlock(&q->headLock);
+        return -1; // queue was empty
+    }
+    *value = newHead->value;
+    q->head = newHead;
+    pthread_mutex_unlock(&q->headLock);
+    free(tmp);
+    return 0;
+}
+```
+큐는 FIFO(First In First Out) 구조이므로 앞 뒤로 모두 데이터가 이동한다.<br>
+즉 삽입을 위한 Tail의 lock, 삭제를 위한 Head의 lock을 각각 사용하여 상호 배제를 구현하는 것이다.<br>
+
+큐가 비어있거나 너무 가득 찬 경우 문제가 발생할 수 있는데, 이를 해결하는 Bounded Queue를 다음 장에서 배워보자.<br>
+
+### 29,4 Concurrent Hash Table
+크기 조정을 하지 않는 간단한 해시 테이블에 초점을 맞춰보자.<br>
+```C
+typedef struct __hash_t {
+    list_t lists[BUCKET_COUNT];
+} hash_t;
+
+void Hash_Init(hash_t *H) {
+    int i;
+    for (i = 0; i < BUCKET_COUNT; i++)
+        List_Init(&H->lists[i]);
+}
+
+int Hash_Insert(hash_t *H, int key) {
+    int bucket = key % BUCKET_COUNT;
+    return List_Insert(&H->lists[bucket], key);
+}
+
+int Hash_Lookup(hash_t *H, int key) {
+    int bucket = key % BUCKET_COUNT;
+    return List_Lookup(&H->lists[bucket], key);
+}
+```
+
+concurrent list를 사용하여 구축되며, 매우 좋은 성능으로 동작한다.<br>
+그 이유는 전체 구조에 대해 단일 lock을 가지지 않고 hash bucket마다 lock을 사용한다는 점이다.<br>
+(각 bucket은 list로 표현된다.)
+
+
+----
+
+## 30 Condition Variables
+지금까지 lock의 개념과 OS,HW의 지원을 받아 lock을 구현하는 방법을 알아보았다.<br>
+이제 Syncronization(동기화)을 위한 다른 방법을 알아보자.<br>
+동기화란 Mutual exclusion과 스레드의 순서까지 고려하는 개념이다.<br>
+
+스레드는 excution을 계속하기 전에 condition이 참인지 거짓인지 확인하고자 하는 경우가 많다.<br>
+예를 들어 부모스레드는 자식 스레드가 완료되었는지 확인한 후 계속 진행하고자 할수 있다.<br>
+
+```C
+void *child(void *arg){
+    printf("child\n");
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    printf("parent: begin\n");
+    pthread_t c;
+    // 자식 스레드 생성
+    pthread_create(&c, NULL, child, NULL);
+    printf("parent: end\n");
+    return 0;
+}
+```
+
+위의 코드를 실행하면
+```
+parent: begin
+child
+parent: end
+```
+이렇게 출력된다.<br>
+
+아직 자식 스레드의 완료를 기다리는 코드가 아니다. spin lock을 사용해 부모 스레드가 자식 스레드의 완료를 기다리개 만들자.<br>
+
+```C
+volatile int done = 0;
+
+void *child(void *arg){
+    printf("child\n");
+    done = 1;
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    printf("parent: begin\n");
+    pthread_t c;
+    // 자식 스레드 생성
+    pthread_create(&c, NULL, child, NULL);
+    // 자식 스레드가 전역변수 done을 1로 만들 때 까지 spin
+    while (done == 0)
+    
+    printf("parent: end\n");
+    return 0;
+}
+```
+
+전역 변수 done을 선언하고 자식 스레드가 완료될 때 done = 1을 만들어 준다.<br>
+그리고 부모 스레드는 done이 1이 될 때까지 spin wait을 한다.<br>
+하지만 이 방법은 자식 스레드가 완료될 때까지 부모 스레드가 계속해서 CPU를 사용하므로 비효율적이다.<br>
+따라서 자식 스레드가 완료될 때까지 부모 스레드는 잠시 sleep(절전) 상태로 변환해서 CPU를 낭비하지 않도록 해야한다.<br>
+
+
+### 30.1 Definition and Routines
+특정 작업을 기다릴 때 계속 조건을 확인하며 CPU를 차지하고 있는 게 아니라 sleep 상태로 전환하여 CPU 낭비를 줄이기 위해서는 
+condition variable을 사용해야한다.<br>
+조건 변수는 스레드가 특정 조건이 만족되지 않았을 때 Queue 안에서 대기하게 만들어준다.<br>
+다른 스레드에서 Queue 안ㅇ에서 sleep 상태로 대기 중인 스레드를 깨우면 해당 스레드는 Queue에서 나와서 다시 실행가능한 상태가 된다.<br>
+
+예를 들어 A스레드는 B 스레드가 완료된 후에 실행되고 싶다고 할 때 조건변수를 사용하면 A는 B가 완료될때까지 sleep 상태로 기다린다.<br>
+그러다 B 스레드가 종료될 때 A스레드를 깨우게 되고 그러면 A스레드는 실행가능한 상태가 된다.<br>
+
+```C
+int done = 0;
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t c = PTHREAD_COND_INITIALIZER;
+
+void thr_exit() {
+    pthread_mutex_lock(&m);
+    done = 1;
+    pthread_cond_signal(&c);
+    pthread_mutex_unlock(&m);
+}
+
+void *child(void *arg) {
+    printf("child\n");
+    thr_exit();
+    return NULL;
+}
+
+void thr_join() {
+    pthread_mutex_lock(&m);
+    while (done == 0)
+        pthread_cond_wait(&c, &m);
+    pthread_mutex_unlock(&m);
+}
+
+int main(int argc, char *argv[]) {
+    printf("parent: begin\n");
+    pthread_t p;
+    pthread_create(&p, NULL, child, NULL);
+    thr_join();
+    printf("parent: end\n");
+    return 0;
+}
+```
+
+pthread_cond_t 타입으로 조건 변수를 만들어 줄 수 있다.<br>
+조건 변수를 사용하는 함수에 wait, signal 함수가 있다.<br>
+
+```
+// 스레드를 sleep 상태로 만드는 함수
+pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m); 
+
+// 스레드를 ready 상태로 만드는 함수
+pthread_cond_signal(pthread_cond_t *c);
+```
+
+wait 함수는 mutex, 즉 lock을 매개변수로 갖는다.<br>
+wait 호출 시 mutex가 잠금 상태여야 한다고 가정한다.<br>
+wait 함수는 mutex를 잠금 해제하고 호출하는 스레드를 원자적으로 sleep 상태로 만든다.<br>
+다른 스레드가 시그널링한 후 해당 스레드가 깨어날 때 호출자에게 돌아가기 전에 다시 mutex를 잠그는 것이 필요하다.<br>
+이것은 스레드가 자기 자신을 잠자게 할 때 발생할 수 있는 특정 경쟁 상태를 방지하려는 의도에서 비롯된다.<br>
+
+두가지 경우를 고려해야한다.
+1. 부모가 자식 스레드를 생성하지만 자식 스레드가 계속 실행됨
+그래서 즉시 thr_join()을 호출하여 자식 스레드가완료될 떄까지 대기하고자 하는 경우이다.<br>
+이 경우는 Mutex를 잠그고 자식 스레드가 완료되었는지 확인한 다음 wait()를 호출하여 스스로를 잠자게한다.<br>
+즉 mutex를 해제한다.<br>
+자식스레드는 결국 실행되어 "child" 메세지를 출력하고 thr_exit()를 호출하여 부모 스레드를 깨운다.<br>
+이 코드는 그저 mutex를 잠그고 상태 변수 done을 설정하고 부모 스레드를 시그널링하여 깨우는 것이다.<br>
+
+마지막으로 부모 스레드는 실행되며 wait에서 잠금상태로 반환한 mutex의 잠금을 해제하고 최종 메세지 "parent:end"를 출력한다.<br>
+
+2. 자식스레드가 즉시 실행되는 경우
+자식 스레드가 즉시 실행되어 done = 1 설정하고 스레드를 깨울 signal()을 호출하지만 대기 중인 스레드가 없기 때문에 그냥 반환하게 된다.<br>
+그런 다음 부모 스레드가 실행되어 thr_join()을 호출하고 done = 1인지 확인하고 따라서 대기하지 않고 바환한다.
+
+마지막으로 while 루프 대신 if문을 사용한다는 것에 주목하자.
+
+
+
+
+
+thr_exit()와 thr_join()에 대해 좀 더 알아보자
+자식스레드가 즉시 실행되고 thr_exit()을 즉시 호출하는 경우를 상상해보자.<br>
+이 경우 자식 스레드는 시그널을 보내지만 조건에 대해 대기중인 스레드가 없다.<br>
+부모가 실행되면 단순히 wait를 호출하고 어떤 스레드도 깨우지 않는다.<br>
+
+```C
+void thr_exit() {
+    pthread_mutex_lock(&m);
+    pthread_cond_signal(&c);
+    pthread_mutex_unlock(&m);
+}
+
+void thr_join() {
+    pthread_mutex_lock(&m);
+    pthread_cond_wait(&c, &m);
+    pthread_mutex_unlock(&m);
+}
+```
+
+done이라는 전역 변수가 사라진 코드이다. 이렇게 되면 자식 스레드가 바로 실행되어 thr_exit()를 호출한다면 깨울 스레드가 없는데도 그냥 signal을 보내고 끝나게 된다.<br>
+그런 뒤 부모 스레드에서 wait()를 호출하여 sleep 상태로 넘어가면 아무도 부모 스레드를 깨울 수 없게 되어 버리는 것이다.<br>
+
+
+
+아래 코드는 signal과 대기를 위한 lock을 사용하지 않는 코드이다.<br>
+```C
+void thr_exit(){
+    done = 1;
+    pthread_cond_signal(&c);
+}
+
+void thr_join(){
+    if (done == 0)
+        pthread_cond_wait(&c);
+}
+
+```
+이제 lock을 사용하지 않고 wait, signal을 사용하면 어떻게 될까?<br>
+done이라는 변수는 부모, 자식 스레드 모두 접근할 수 있는 critical section이다.<br>
+critical section에 대한 mutual exclusion이 구현 되지 않은 상태로 실행하면 문제가 발생한다.<br>
+
+race condition(미묘한 경합 조건)이라는 것이 발생한다.<br>
+부모스레드가 thr_join()을 호출하고 done의 값을 확인한 다음 0인지 확인하고 sleep 상태가 되려한다.<br>
+그러나 wait를 호출하기 바로 직전에 부모가 중단되고 자식 스레드가 실행된다. 자식 스레드는 done 상태변수를 1로 변경하고 시그널을 보내지만
+대기 중인 스레드가 없으므로 어떤 스레드도 깨우지 않는다.<br>
+부모스레드가 다시 실행되면 영원히 잠들게 된다.<br>
+
+>race condition(경합 조건)이란?
+>멀티스레드 환경에서 동시에 여러 스레드가 공유된 리소스에 접근하려고 할 때 발생하는 문제이다.<br>
+
+
+좀 더 자세한 이해를 위해 producer/consumer 또는 bounded-buffer problem을 살펴보자.<br>
+
+### 30.2 The Producer/Consumer (Bounded Buffer) Problem
+
+생산자는 데이터 항목을 생성하여 버퍼에 넣고, 소비자는 버퍼에서 해당 항목을 가져와 소비한다.<br>
+
+Bound Buffer는 한 프로그램의 출력을 다른 프록램으로 파이프링할 때 사용된다.<br>
+예를 들어 HTTP 요청을 처리하는 작업이나 한 프로그램의 출력을 다른 프로그램으로 파이프링할 때 사용된다.<br>
+여기서 버퍼는 공유 자원이므로 여러 스레드에서 접근이 가능한데 여기서 race condition이 발생한다.<br>
+
+간단한 코드로 생산자/소비자 문제를 살펴보자.<br>
+```C
+int buffer;
+int count = 0; //initially, empty
+
+void put(int value) {
+    assert(count == 0);
+    count = 1;
+    buffer = value;
+}
+
+int get() {
+    assert(count == 1);
+    count = 0;
+    return buffer;
+}
+```
+put() , get()이라는 단순한 두 함수로 생산자/소비자가 하는 일을 표현할 수 있다.
+put()은 공유 버퍼의 값을 변화시키고 get()은 공유 버퍼의 값을 반환하는 것이다.
+count가 공유 버퍼의 사이즈이다.<br>
+
+put() 과 get()함수를 생산자 소비자 스레드가 사용하는 코드는 다음과 같다.
+```C
+void *producer(void *arg) {
+    int i;
+    int loops = (int)arg;
+    for (i = 0; i < loops; i++) {
+        put(i);
+    }
+}
+
+void *consumer(void *arg) {
+    while(1){
+        int tmp = get();
+        printf("%d\n", tmp);
+    }
+}
+```
+생산자는 반복 횟수만큼 데이털르 공유 버퍼에 저장하고 소비자는 get()이 될때마다 공유 버퍼의 값을 가져온다.<br>
+이 코드의 문제점은 bufferm count 라는 critical section이 존재하는데 여기서 Mutual exclusion이 보장되지 않는다.<br>
+또 동기화를 위한 조건 변수도 없으니 이를 추가한 코드를 작성해보자.
+
+```C
+int loops; //must initialize somewhere
+cond_t cond;
+mutex_t mutex;
+
+void *producer(coid *arg){
+    int i;
+    for (i=0;i<loops;i++){
+        Pthread_mutex_lock(&mutex);
+        if (count == 1)
+            Pthread_cond_wait(&cond, &mutex);
+        put(i);
+        Pthread_cond_signal(&cond);
+        Pthread_mutex_unlock(&mutex);
+    }
+}
+
+void *consumer(void *arg){
+    int i;
+    for(i=0 ; i<loops; i++>){
+        Pthread_mutex_lock(&mutex);
+        if (count == 0)
+            Pthread_cond_wait(&cond, &mutex);
+        int tmp = get();
+        Pthread_cond_signal(&cond);
+        Pthread_mutex_unlock(&mutex);
+        printf("%d\n", tmp);
+    }
+}
+```
+이렇게 하면 생산자,소비자가 하나씩 존재할 때는 잘 작동한다.<br>
+
+그렇다면 소비자가 2개(Tc1 , Tc2)이고 생산자가 1개(Tp1)인 상황에서 고려해보자.<br>
